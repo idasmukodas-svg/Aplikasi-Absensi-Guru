@@ -18,9 +18,10 @@
       padding: 0;
       background-color: var(--bg-color); 
       color: var(--text-dark);
+      scroll-behavior: smooth;
     }
 
-    /* TOP NAVBAR MENU */
+    /* TOP NAVBAR MENU RESPONSIVE */
     .navbar {
       background-color: var(--primary-color);
       color: white;
@@ -43,6 +44,16 @@
       padding: 12px 0;
     }
 
+    /* Hamburger Toggle untuk Layar HP */
+    .menu-toggle {
+      display: none;
+      font-size: 22px;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
     .navbar-menu {
       display: flex;
       list-style: none;
@@ -63,8 +74,9 @@
     }
 
     .navbar-menu li a:hover, .navbar-menu li a.active {
-      background-color: rgba(255, 255, 255, 0.15);
+      background-color: rgba(255, 255, 255, 0.2);
       color: #ffffff;
+      font-weight: bold;
     }
 
     .navbar-user {
@@ -98,6 +110,7 @@
       border-radius: 8px; 
       box-shadow: 0 2px 6px rgba(0,0,0,0.06); 
       margin-bottom: 20px; 
+      scroll-margin-top: 70px; /* Offset scroll agar tidak tertutup navbar */
     }
 
     /* HEADER BANNER */
@@ -323,8 +336,23 @@
     .footer-bottom strong { color: #4ade80; }
 
     @media (max-width: 768px) {
-      .navbar { flex-direction: column; padding: 10px; align-items: flex-start; }
-      .navbar-menu { width: 100%; overflow-x: auto; padding: 5px 0; }
+      .navbar { flex-wrap: wrap; padding: 10px 15px; }
+      .menu-toggle { display: block; }
+      .navbar-user { display: none; }
+      
+      .navbar-menu {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        margin-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding-top: 5px;
+      }
+
+      .navbar-menu.show {
+        display: flex;
+      }
+
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full-width { grid-column: span 1; }
     }
@@ -340,23 +368,27 @@
     <div class="navbar-brand">
       <span>🏫</span> E-Admin Absensi
     </div>
-    <ul class="navbar-menu">
-      <li><a href="#sec-dashboard" class="active">Dashboard</a></li>
-      <li><a href="#sec-lokasi">Lokasi & Radius</a></li>
-      <li><a href="#sec-qrcode">QR Code</a></li>
-      <li><a href="#sec-guru">Master Guru</a></li>
-      <li><a href="#sec-rekap">Rekapitulasi</a></li>
+    
+    <button class="menu-toggle" id="menuToggle" onclick="toggleMenu()">☰</button>
+
+    <ul class="navbar-menu" id="navbarMenu">
+      <li><a href="#sec-dashboard" class="nav-link active">Dashboard</a></li>
+      <li><a href="#sec-lokasi" class="nav-link">Lokasi & Radius</a></li>
+      <li><a href="#sec-qrcode" class="nav-link">QR Code</a></li>
+      <li><a href="#sec-guru" class="nav-link">Master Guru</a></li>
+      <li><a href="#sec-rekap" class="nav-link">Rekapitulasi</a></li>
     </ul>
+
     <div class="navbar-user">
       <span class="badge-online">● Online</span>
       <span style="opacity: 0.8;">| Kepala Sekolah</span>
     </div>
   </nav>
 
-  <div class="container" id="sec-dashboard">
+  <div class="container">
 
-    <!-- Header Card Logo & Identitas -->
-    <div class="card header-container">
+    <!-- Card Dashboard Header -->
+    <div class="card header-container" id="sec-dashboard">
       <img src="logo.jpeg" alt="Logo SMP Terpadu Nusakarya" class="school-logo" 
            onerror="if (this.src.endsWith('logo.jpeg')) { this.src='logo.jpg'; } else if (this.src.endsWith('logo.jpg')) { this.src='logo.png'; }">
       <div class="header-text">
@@ -416,7 +448,7 @@
           <label for="inputRadius">Batas Radius Maksimal Absensi (Meter):</label>
           <input type="number" id="inputRadius" class="form-control" value="50" placeholder="50">
           <small style="color: #666; font-size: 11px; margin-top: 4px; display: block;">
-            * Guru hanya dapat melakukan absensi jika posisi GPS berada dalam jarak radius ini dari lokasi sekolah. Anda dapat memperbesar angka ini (misal: 2000) jika sedang uji coba sistem dari rumah/luar lokasi.
+            * Guru hanya dapat melakukan absensi jika posisi GPS berada dalam jarak radius ini dari lokasi sekolah.
           </small>
         </div>
       </div>
@@ -457,9 +489,7 @@
         <div class="grid-col" style="border: 1px solid #c8e6c9; background: #e8f5e9; padding: 15px; border-radius: 8px;">
           <h3 id="formGuruTitle" style="margin-top:0; font-size: 15px; color: #1b5e20;">✏️ Tambah Guru & Hari Kerja</h3>
           
-          <!-- Hidden Input untuk menampung ID Guru saat Mode Edit -->
           <input type="hidden" id="editGuruDocId" value="">
-
           <input type="text" id="inputNamaManual" class="form-control" placeholder="Ketik Nama Lengkap Guru..." style="margin-bottom: 8px;">
           
           <label style="font-size: 12px; font-weight: bold; color: #333;">Pilih Hari Kerja Guru:</label>
@@ -571,7 +601,6 @@
         <p><strong>Versi Sistem:</strong> v2.4 (Terintegrasi GPS Validation)</p>
       </div>
 
-      <!-- SEKSI DEVELOPER -->
       <div class="footer-section">
         <h3>👨‍💻 Pengembang Sistem</h3>
         <p><strong>Developer:</strong> Idas</p>
@@ -592,6 +621,27 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <script>
+    // FITUR TOGGLE MENU DAN HIGHLIGHT MENU AKTIF
+    function toggleMenu() {
+      const menu = document.getElementById("navbarMenu");
+      menu.classList.toggle("show");
+    }
+
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+      link.addEventListener('click', function() {
+        navLinks.forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Menutup menu drop-down di tampilan layar HP setelah diklik
+        const menu = document.getElementById("navbarMenu");
+        if (menu.classList.contains("show")) {
+          menu.classList.remove("show");
+        }
+      });
+    });
+
+    // FIREBASE CONFIGURATION
     const firebaseConfig = {
       apiKey: "AIzaSyA_xvQY0NubGpzBk-5Gm6Z2mqk5_EosNKs",
       authDomain: "absensi-guru-annuur.firebaseapp.com",
@@ -610,7 +660,6 @@
     let dataGuruSemua = [];
     let dataAbsensiSemua = [];
 
-    // Nilai Default Lokasi Sekolah
     const DEFAULT_LAT = -7.345545;
     const DEFAULT_LNG = 108.057451;
     const DEFAULT_RADIUS = 50;
@@ -619,7 +668,6 @@
     document.getElementById("filterTanggal").value = now.toISOString().split('T')[0];
     document.getElementById("filterBulan").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // MEMUAT PENGATURAN LOKASI DARI FIRESTORE
     function loadPengaturanSekolah() {
       db.collection("settings").doc("school_location").get().then((doc) => {
         if (doc.exists) {
@@ -643,7 +691,6 @@
       });
     }
 
-    // MEMPERCANGKOKKAN LOKASI GPS ADMIN SAAT INI
     function ambilLokasiSaatIni() {
       if (!navigator.geolocation) {
         alert("Browser Anda tidak mendukung fitur Geolocation GPS.");
@@ -665,7 +712,6 @@
       );
     }
 
-    // MENYIMPAN LOKASI & RADIUS KE FIRESTORE
     function simpanPengaturanLokasi() {
       const lat = parseFloat(document.getElementById("inputLat").value);
       const lng = parseFloat(document.getElementById("inputLng").value);
@@ -718,18 +764,11 @@
 
     loadDataAwal();
 
-    // UPDATE STATISTIK DASHBOARD DENGAN ANGKA RIIL
     function updateKartuStatistik() {
       const tglHariIni = new Date().toISOString().split('T')[0];
-      
-      // Total Guru
       document.getElementById("statTotalGuru").innerText = dataGuruSemua.length;
-
-      // Guru Hadir Hari Ini
       const hadirHariIni = dataAbsensiSemua.filter(a => a.date === tglHariIni && a.check_in_time && a.check_in_time !== "-").length;
       document.getElementById("statHadirHariIni").innerText = hadirHariIni;
-
-      // Total HP Terikat
       const hpTerikat = dataGuruSemua.filter(g => g.device_id).length;
       document.getElementById("statHpTerikat").innerText = hpTerikat;
     }
@@ -739,7 +778,6 @@
       return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ').trim();
     }
 
-    // PROSES UPLOAD MASTER GURU DARI EXCEL
     function prosesUploadMasterGuru() {
       const fileInput = document.getElementById("excelFile");
       const file = fileInput.files[0];
@@ -791,7 +829,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // RENDER TABEL MASTER GURU
     function renderTabelMasterGuru() {
       const tbody = document.getElementById("tabel-master-guru");
       if (dataGuruSemua.length === 0) {
@@ -823,7 +860,6 @@
       });
     }
 
-    // SIMPAN ATAU UPDATE DATA GURU
     function simpanAtauUpdateGuru() {
       const docId = document.getElementById("editGuruDocId").value;
       const namaInput = document.getElementById("inputNamaManual").value.trim();
@@ -844,7 +880,6 @@
       const namaRapi = formatNamaRapi(namaInput);
 
       if (docId) {
-        // Mode Update Guru
         db.collection("teachers").doc(docId).update({
           name: namaRapi,
           work_days: selectedDays
@@ -854,7 +889,6 @@
           loadDataAwal();
         });
       } else {
-        // Mode Tambah Guru Baru
         db.collection("teachers").add({
           name: namaRapi,
           work_days: selectedDays,
@@ -868,7 +902,6 @@
       }
     }
 
-    // MENAMPILKAN DATA KE FORM SAAT TOMBOL EDIT DIKLIK
     function editGuru(docId) {
       const g = dataGuruSemua.find(item => item.id === docId);
       if (!g) return;
@@ -889,7 +922,6 @@
       document.getElementById("formGuruTitle").scrollIntoView({ behavior: 'smooth' });
     }
 
-    // BATAL EDIT GURU
     function batalEditGuru() {
       document.getElementById("editGuruDocId").value = "";
       document.getElementById("inputNamaManual").value = "";
@@ -905,7 +937,6 @@
       document.getElementById("btnBatalEdit").style.display = "none";
     }
 
-    // RESET DEVICE ID SAAT GANTI HP
     function resetDeviceGuru(docId, nama) {
       if (confirm(`Apakah Anda yakin ingin melepaskan ikatan HP untuk "${nama}"?\n\nGuru ini nantinya dapat mendaftarkan HP barunya saat pertama kali scan absen kembali.`)) {
         db.collection("teachers").doc(docId).update({
@@ -955,7 +986,6 @@
       else if (mode === "perguru") renderRekapPerGuru(table);
     }
 
-    // RENDER REKAP HARIAN
     function renderRekapHarian(table) {
       const tglPilihan = document.getElementById("filterTanggal").value;
       const filtered = dataAbsensiSemua.filter(a => a.date === tglPilihan);
@@ -999,9 +1029,8 @@
       table.innerHTML = html;
     }
 
-    // RENDER REKAP BULANAN
     function renderRekapBulanan(table) {
-      const bulanPilihan = document.getElementById("filterBulan").value; // Format: YYYY-MM
+      const bulanPilihan = document.getElementById("filterBulan").value;
       if (!bulanPilihan) return;
 
       const filtered = dataAbsensiSemua.filter(a => a.date && a.date.startsWith(bulanPilihan));
@@ -1041,7 +1070,6 @@
       table.innerHTML = html;
     }
 
-    // RENDER REKAP PER-GURU
     function renderRekapPerGuru(table) {
       const guruPilihan = document.getElementById("filterGuru").value;
       const bulanPilihan = document.getElementById("filterBulan").value;
@@ -1093,7 +1121,6 @@
       table.innerHTML = html;
     }
 
-    // RESET FILTER REKAPITULASI
     function resetFilter() {
       const today = new Date();
       document.getElementById("modeRekap").value = "harian";
@@ -1103,7 +1130,6 @@
       gantiModeTampilan();
     }
 
-    // EXPORT TABEL DINAMIS KE FILE EXCEL
     function exportKeExcel() {
       const table = document.getElementById("tabelDinamis");
       if (!table || table.rows.length === 0) {
