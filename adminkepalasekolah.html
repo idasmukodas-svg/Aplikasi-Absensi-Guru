@@ -110,7 +110,7 @@
       border-radius: 8px; 
       box-shadow: 0 2px 6px rgba(0,0,0,0.06); 
       margin-bottom: 20px; 
-      scroll-margin-top: 70px; /* Offset scroll agar tidak tertutup navbar */
+      scroll-margin-top: 70px;
     }
 
     /* HEADER BANNER */
@@ -633,7 +633,6 @@
         navLinks.forEach(l => l.classList.remove('active'));
         this.classList.add('active');
         
-        // Menutup menu drop-down di tampilan layar HP setelah diklik
         const menu = document.getElementById("navbarMenu");
         if (menu.classList.contains("show")) {
           menu.classList.remove("show");
@@ -928,7 +927,7 @@
 
       const checkboxes = document.querySelectorAll('input[name="workDays"]');
       checkboxes.forEach(cb => {
-        cb.checked = (cb.value !== "Sabtu");
+        cb.checked = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"].includes(cb.value);
       });
 
       document.getElementById("formGuruTitle").innerText = "✏️ Tambah Guru & Hari Kerja";
@@ -938,210 +937,188 @@
     }
 
     function resetDeviceGuru(docId, nama) {
-      if (confirm(`Apakah Anda yakin ingin melepaskan ikatan HP untuk "${nama}"?\n\nGuru ini nantinya dapat mendaftarkan HP barunya saat pertama kali scan absen kembali.`)) {
+      if (confirm(`Yakin ingin mereset ikatan HP milik guru: "${nama}"? Guru dapat login dari HP baru setelah direset.`)) {
         db.collection("teachers").doc(docId).update({
           device_id: null
         }).then(() => {
-          alert(`Ikatan HP untuk ${nama} berhasil di-reset!`);
+          alert(`Berhasil mereset ikatan HP guru "${nama}".`);
           loadDataAwal();
+        }).catch(err => {
+          alert("Gagal mereset HP: " + err.message);
         });
       }
     }
 
     function hapusGuru(docId, nama) {
-      if (confirm(`Hapus "${nama}" dari daftar guru?`)) {
+      if (confirm(`Apakah Anda yakin ingin menghapus guru "${nama}" dari sistem?`)) {
         db.collection("teachers").doc(docId).delete().then(() => {
+          alert(`Guru "${nama}" berhasil dihapus.`);
           loadDataAwal();
+        }).catch(err => {
+          alert("Gagal menghapus data: " + err.message);
         });
       }
     }
 
     function isiDropdownGuru() {
       const select = document.getElementById("filterGuru");
-      const listGuru = new Set();
-
-      dataGuruSemua.forEach(g => g.name && listGuru.add(formatNamaRapi(g.name)));
-      dataAbsensiSemua.forEach(a => a.user_name && listGuru.add(formatNamaRapi(a.user_name)));
-
       select.innerHTML = '<option value="">-- Semua Guru --</option>';
-      Array.from(listGuru).sort().forEach(guru => {
-        select.innerHTML += `<option value="${guru}">${guru}</option>`;
+      dataGuruSemua.sort((a,b) => (a.name > b.name) ? 1 : -1).forEach(g => {
+        select.innerHTML += `<option value="${g.name}">${g.name}</option>`;
       });
     }
 
     function gantiModeTampilan() {
       const mode = document.getElementById("modeRekap").value;
       document.getElementById("boxFilterTanggal").style.display = (mode === "harian") ? "block" : "none";
-      document.getElementById("boxFilterBulan").style.display = (mode === "bulanan" || mode === "perguru") ? "block" : "none";
+      document.getElementById("boxFilterBulan").style.display = (mode === "bulanan") ? "block" : "none";
       document.getElementById("boxFilterGuru").style.display = (mode === "perguru") ? "block" : "none";
       renderLaporan();
     }
 
     function renderLaporan() {
       const mode = document.getElementById("modeRekap").value;
-      const table = document.getElementById("tabelDinamis");
+      const tabel = document.getElementById("tabelDinamis");
 
-      if (mode === "harian") renderRekapHarian(table);
-      else if (mode === "bulanan") renderRekapBulanan(table);
-      else if (mode === "perguru") renderRekapPerGuru(table);
-    }
-
-    function renderRekapHarian(table) {
-      const tglPilihan = document.getElementById("filterTanggal").value;
-      const filtered = dataAbsensiSemua.filter(a => a.date === tglPilihan);
-
-      let html = `
-        <thead>
-          <tr>
-            <th style="width: 40px;">No</th>
-            <th>Nama Guru</th>
-            <th>Tanggal</th>
-            <th>Jam Masuk</th>
-            <th>Jam Pulang</th>
-            <th>Status Kehadiran</th>
-          </tr>
-        </thead>
-        <tbody>
-      `;
-
-      if (filtered.length === 0) {
-        html += `<tr><td colspan="6">Tidak ada catatan presensi untuk tanggal ${tglPilihan}.</td></tr>`;
-      } else {
-        let no = 1;
-        filtered.sort((a,b) => (a.user_name > b.user_name) ? 1 : -1).forEach(item => {
-          const jamMasuk = item.check_in_time ? `<span class="badge-masuk">${item.check_in_time}</span>` : '-';
-          const jamPulang = item.check_out_time ? `<span class="badge-pulang">${item.check_out_time}</span>` : '-';
-
-          html += `
+      if (mode === "harian") {
+        const filterTgl = document.getElementById("filterTanggal").value;
+        let html = `
+          <thead>
             <tr>
-              <td>${no++}</td>
-              <td class="nama-guru">${formatNamaRapi(item.user_name)}</td>
-              <td>${item.date}</td>
-              <td>${jamMasuk}</td>
-              <td>${jamPulang}</td>
-              <td><span class="status-hadir">Hadir</span></td>
+              <th>No</th>
+              <th>Nama Guru</th>
+              <th>Tanggal</th>
+              <th>Jam Masuk</th>
+              <th>Jam Pulang</th>
+              <th>Status Kehadiran</th>
             </tr>
-          `;
-        });
-      }
+          </thead>
+          <tbody>
+        `;
 
-      html += `</tbody>`;
-      table.innerHTML = html;
-    }
+        const dataFiltered = dataAbsensiSemua.filter(a => a.date === filterTgl);
 
-    function renderRekapBulanan(table) {
-      const bulanPilihan = document.getElementById("filterBulan").value;
-      if (!bulanPilihan) return;
+        if (dataFiltered.length === 0) {
+          html += `<tr><td colspan="6">Tidak ada data presensi pada tanggal ${filterTgl}</td></tr>`;
+        } else {
+          let no = 1;
+          dataFiltered.forEach(a => {
+            // PERBAIKAN: Mendukung teacher_name, nama_guru, dan nama
+            const namaGuru = a.teacher_name || a.nama_guru || a.nama || "Tanpa Nama";
+            const jamMasuk = a.check_in_time || a.jam_masuk || "-";
+            const jamPulang = a.check_out_time || a.jam_pulang || "-";
 
-      const filtered = dataAbsensiSemua.filter(a => a.date && a.date.startsWith(bulanPilihan));
+            html += `
+              <tr>
+                <td>${no++}</td>
+                <td class="nama-guru">${formatNamaRapi(namaGuru)}</td>
+                <td>${a.date}</td>
+                <td><span class="badge-masuk">${jamMasuk}</span></td>
+                <td>${jamPulang !== "-" ? `<span class="badge-pulang">${jamPulang}</span>` : "-"}</td>
+                <td><span class="status-hadir">Hadir</span></td>
+              </tr>
+            `;
+          });
+        }
+        html += `</tbody>`;
+        tabel.innerHTML = html;
 
-      let html = `
-        <thead>
-          <tr>
-            <th style="width: 40px;">No</th>
-            <th>Nama Guru</th>
-            <th>Total Kehadiran (Hari)</th>
-            <th>Bulan</th>
-          </tr>
-        </thead>
-        <tbody>
-      `;
+      } else if (mode === "bulanan") {
+        const filterBln = document.getElementById("filterBulan").value;
+        let html = `
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Guru</th>
+              <th>Bulan</th>
+              <th>Total Kehadiran</th>
+              <th>Persentase</th>
+            </tr>
+          </thead>
+          <tbody>
+        `;
 
-      if (dataGuruSemua.length === 0) {
-        html += `<tr><td colspan="4">Belum ada data guru terdaftar.</td></tr>`;
-      } else {
         let no = 1;
-        dataGuruSemua.sort((a,b) => (a.name > b.name) ? 1 : -1).forEach(guru => {
-          const namaRapi = formatNamaRapi(guru.name);
-          const totalHadir = filtered.filter(a => formatNamaRapi(a.user_name) === namaRapi).length;
+        dataGuruSemua.forEach(g => {
+          const absensiGuru = dataAbsensiSemua.filter(a => {
+            const nama = a.teacher_name || a.nama_guru || a.nama || "";
+            return nama.toLowerCase() === g.name.toLowerCase() && a.date && a.date.startsWith(filterBln);
+          });
+
+          const totalHadir = absensiGuru.length;
+          const targetHariKerja = 20; // Default estimasi hari kerja
+          const persen = Math.round((totalHadir / targetHariKerja) * 100);
 
           html += `
             <tr>
               <td>${no++}</td>
-              <td class="nama-guru">${namaRapi}</td>
+              <td class="nama-guru">${formatNamaRapi(g.name)}</td>
+              <td>${filterBln}</td>
               <td><strong>${totalHadir} Hari</strong></td>
-              <td>${bulanPilihan}</td>
+              <td><span class="badge-persen">${persen}%</span></td>
             </tr>
           `;
         });
-      }
+        html += `</tbody>`;
+        tabel.innerHTML = html;
 
-      html += `</tbody>`;
-      table.innerHTML = html;
-    }
-
-    function renderRekapPerGuru(table) {
-      const guruPilihan = document.getElementById("filterGuru").value;
-      const bulanPilihan = document.getElementById("filterBulan").value;
-
-      let filtered = dataAbsensiSemua;
-
-      if (bulanPilihan) {
-        filtered = filtered.filter(a => a.date && a.date.startsWith(bulanPilihan));
-      }
-
-      if (guruPilihan) {
-        filtered = filtered.filter(a => formatNamaRapi(a.user_name) === guruPilihan);
-      }
-
-      let html = `
-        <thead>
-          <tr>
-            <th style="width: 40px;">No</th>
-            <th>Nama Guru</th>
-            <th>Tanggal</th>
-            <th>Jam Masuk</th>
-            <th>Jam Pulang</th>
-          </tr>
-        </thead>
-        <tbody>
-      `;
-
-      if (filtered.length === 0) {
-        html += `<tr><td colspan="5">Tidak ada riwayat absensi untuk filter yang dipilih.</td></tr>`;
-      } else {
-        let no = 1;
-        filtered.sort((a,b) => (a.date > b.date) ? -1 : 1).forEach(item => {
-          const jamMasuk = item.check_in_time ? `<span class="badge-masuk">${item.check_in_time}</span>` : '-';
-          const jamPulang = item.check_out_time ? `<span class="badge-pulang">${item.check_out_time}</span>` : '-';
-
-          html += `
+      } else if (mode === "perguru") {
+        const guruPilihan = document.getElementById("filterGuru").value;
+        let html = `
+          <thead>
             <tr>
-              <td>${no++}</td>
-              <td class="nama-guru">${formatNamaRapi(item.user_name)}</td>
-              <td>${item.date}</td>
-              <td>${jamMasuk}</td>
-              <td>${jamPulang}</td>
+              <th>No</th>
+              <th>Nama Guru</th>
+              <th>Tanggal</th>
+              <th>Jam Masuk</th>
+              <th>Jam Pulang</th>
             </tr>
-          `;
-        });
-      }
+          </thead>
+          <tbody>
+        `;
 
-      html += `</tbody>`;
-      table.innerHTML = html;
+        const dataFiltered = dataAbsensiSemua.filter(a => {
+          const nama = a.teacher_name || a.nama_guru || a.nama || "";
+          return !guruPilihan || nama.toLowerCase() === guruPilihan.toLowerCase();
+        });
+
+        if (dataFiltered.length === 0) {
+          html += `<tr><td colspan="5">Tidak ada riwayat presensi ditemukan.</td></tr>`;
+        } else {
+          let no = 1;
+          dataFiltered.forEach(a => {
+            const namaGuru = a.teacher_name || a.nama_guru || a.nama || "Tanpa Nama";
+            const jamMasuk = a.check_in_time || a.jam_masuk || "-";
+            const jamPulang = a.check_out_time || a.jam_pulang || "-";
+
+            html += `
+              <tr>
+                <td>${no++}</td>
+                <td class="nama-guru">${formatNamaRapi(namaGuru)}</td>
+                <td>${a.date}</td>
+                <td><span class="badge-masuk">${jamMasuk}</span></td>
+                <td>${jamPulang !== "-" ? `<span class="badge-pulang">${jamPulang}</span>` : "-"}</td>
+              </tr>
+            `;
+          });
+        }
+        html += `</tbody>`;
+        tabel.innerHTML = html;
+      }
     }
 
     function resetFilter() {
-      const today = new Date();
-      document.getElementById("modeRekap").value = "harian";
-      document.getElementById("filterTanggal").value = today.toISOString().split('T')[0];
-      document.getElementById("filterBulan").value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const now = new Date();
+      document.getElementById("filterTanggal").value = now.toISOString().split('T')[0];
+      document.getElementById("filterBulan").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       document.getElementById("filterGuru").value = "";
-      gantiModeTampilan();
+      renderLaporan();
     }
 
     function exportKeExcel() {
-      const table = document.getElementById("tabelDinamis");
-      if (!table || table.rows.length === 0) {
-        alert("Tidak ada data tabel yang dapat diexport!");
-        return;
-      }
-
-      const mode = document.getElementById("modeRekap").value;
-      let fileName = `Rekap_Absensi_${mode}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-      const wb = XLSX.utils.table_to_book(table, { sheet: "Rekap Absensi" });
-      XLSX.writeFile(wb, fileName);
+      const tabel = document.getElementById("tabelDinamis");
+      const wb = XLSX.utils.table_to_book(tabel, { sheet: "Rekap Absensi" });
+      XLSX.writeFile(wb, `Rekap_Absensi_Guru_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
   </script>
 </body>
