@@ -44,7 +44,6 @@
       padding: 12px 0;
     }
 
-    /* Hamburger Toggle untuk Layar HP */
     .menu-toggle {
       display: none;
       font-size: 22px;
@@ -97,7 +96,6 @@
       gap: 4px;
     }
 
-    /* MAIN CONTAINER */
     .container {
       max-width: 1200px;
       margin: 20px auto;
@@ -113,7 +111,6 @@
       scroll-margin-top: 70px;
     }
 
-    /* HEADER BANNER */
     .header-container {
       display: flex;
       align-items: center;
@@ -131,7 +128,6 @@
     .header-text h1 { margin: 0; font-size: 22px; color: var(--primary-color); }
     .header-text p { margin: 4px 0 0 0; color: #666; font-size: 14px; }
 
-    /* STATS DASHBOARD BAR */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -274,7 +270,6 @@
     .badge-pulang { background-color: #c62828; color: white; padding: 3px 6px; border-radius: 4px; }
     .badge-persen { background-color: #1565c0; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
 
-    /* FOOTER STYLES */
     footer {
       background-color: #1e293b;
       color: #cbd5e1;
@@ -397,7 +392,7 @@
       </div>
     </div>
 
-    <!-- Ringkasan Statistik (Quick Stats Bar) -->
+    <!-- Ringkasan Statistik -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">👥</div>
@@ -477,7 +472,6 @@
       <h2>1. Kelola Master Data & Hari Kerja Guru</h2>
       <div class="grid-2">
         
-        <!-- Opsi A: Import Excel -->
         <div class="grid-col" style="border: 2px dashed #2e7d32; background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
           <h3 style="margin-top:0; font-size: 15px; color: #1b5e20;">📁 Import dari File Excel (.xlsx)</h3>
           <input type="file" id="excelFile" accept=".xlsx, .xls" class="form-control" style="margin-bottom: 10px;">
@@ -485,7 +479,6 @@
           <p style="font-size: 11px; color: #666; margin-top: 8px; margin-bottom: 0;">Kolom pertama: <strong>Nama Guru</strong></p>
         </div>
 
-        <!-- Opsi B: Input / Edit Manual Dengan Ceklis Hari -->
         <div class="grid-col" style="border: 1px solid #c8e6c9; background: #e8f5e9; padding: 15px; border-radius: 8px;">
           <h3 id="formGuruTitle" style="margin-top:0; font-size: 15px; color: #1b5e20;">✏️ Tambah Guru & Hari Kerja</h3>
           
@@ -510,7 +503,6 @@
 
       </div>
 
-      <!-- Tabel Daftar Guru Terdaftar & Hari Kerja -->
       <h3 style="margin-top: 20px; font-size: 15px; color: #333;">Daftar Guru & Hari Kerja Terdaftar:</h3>
       <div style="max-height: 250px; overflow-y: auto;">
         <table>
@@ -574,9 +566,8 @@
       </div>
     </div>
 
-  </div> <!-- End Container -->
+  </div>
 
-  <!-- FOOTER HALAMAN -->
   <footer>
     <div class="footer-content">
       <div class="footer-section">
@@ -621,7 +612,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // FITUR TOGGLE MENU DAN HIGHLIGHT MENU AKTIF
     function toggleMenu() {
       const menu = document.getElementById("navbarMenu");
       menu.classList.toggle("show");
@@ -640,7 +630,6 @@
       });
     });
 
-    // FIREBASE CONFIGURATION
     const firebaseConfig = {
       apiKey: "AIzaSyA_xvQY0NubGpzBk-5Gm6Z2mqk5_EosNKs",
       authDomain: "absensi-guru-annuur.firebaseapp.com",
@@ -937,25 +926,19 @@
     }
 
     function resetDeviceGuru(docId, nama) {
-      if (confirm(`Yakin ingin mereset ikatan HP milik guru: "${nama}"? Guru dapat login dari HP baru setelah direset.`)) {
-        db.collection("teachers").doc(docId).update({
-          device_id: null
-        }).then(() => {
-          alert(`Berhasil mereset ikatan HP guru "${nama}".`);
+      if (confirm(`Yakin ingin mereset ikatan HP milik guru: "${nama}"?`)) {
+        db.collection("teachers").doc(docId).update({ device_id: null }).then(() => {
+          alert(`Berhasil mereset HP guru "${nama}".`);
           loadDataAwal();
-        }).catch(err => {
-          alert("Gagal mereset HP: " + err.message);
         });
       }
     }
 
     function hapusGuru(docId, nama) {
-      if (confirm(`Apakah Anda yakin ingin menghapus guru "${nama}" dari sistem?`)) {
+      if (confirm(`Apakah Anda yakin ingin menghapus guru "${nama}"?`)) {
         db.collection("teachers").doc(docId).delete().then(() => {
           alert(`Guru "${nama}" berhasil dihapus.`);
           loadDataAwal();
-        }).catch(err => {
-          alert("Gagal menghapus data: " + err.message);
         });
       }
     }
@@ -1003,7 +986,6 @@
         } else {
           let no = 1;
           dataFiltered.forEach(a => {
-            // PERBAIKAN: Mendukung teacher_name, nama_guru, dan nama
             const namaGuru = a.teacher_name || a.nama_guru || a.nama || "Tanpa Nama";
             const jamMasuk = a.check_in_time || a.jam_masuk || "-";
             const jamPulang = a.check_out_time || a.jam_pulang || "-";
@@ -1030,8 +1012,8 @@
             <tr>
               <th>No</th>
               <th>Nama Guru</th>
+              <th>Total Kehadiran (Hari)</th>
               <th>Bulan</th>
-              <th>Total Kehadiran</th>
               <th>Persentase</th>
             </tr>
           </thead>
@@ -1046,15 +1028,15 @@
           });
 
           const totalHadir = absensiGuru.length;
-          const targetHariKerja = 20; // Default estimasi hari kerja
+          const targetHariKerja = 20; 
           const persen = Math.round((totalHadir / targetHariKerja) * 100);
 
           html += `
             <tr>
               <td>${no++}</td>
               <td class="nama-guru">${formatNamaRapi(g.name)}</td>
-              <td>${filterBln}</td>
               <td><strong>${totalHadir} Hari</strong></td>
+              <td>${filterBln}</td>
               <td><span class="badge-persen">${persen}%</span></td>
             </tr>
           `;
