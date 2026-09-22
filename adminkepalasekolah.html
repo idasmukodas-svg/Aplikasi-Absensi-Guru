@@ -959,36 +959,29 @@
       renderLaporan();
     }
 
-    // LOGIKA PENCOCOKAN CERDAS & FLEKSIBEL (TOLERAN TERHADAP TANDA BACA/GELAR/ID)
+    // PENCOCOKAN PERSISI BERDASARKAN USER_NAME & FIELDFORM
     function isGuruAbsenMatch(record, guru) {
       if (!record || !guru) return false;
 
-      // 1. Cek ID Guru (Jika tersimpan di Firestore)
+      // 1. Cek jika ada ID Guru
       if ((record.teacher_id && record.teacher_id === guru.id) || 
           (record.guru_id && record.guru_id === guru.id)) {
         return true;
       }
 
-      // 2. Normalisasi Teks (Hapus spasi, koma, titik, huruf besar/kecil)
+      // 2. Baca field user_name, teacher_name, nama_guru, atau nama
+      const namaAbsenRaw = record.user_name || record.teacher_name || record.nama_guru || record.nama || "";
+      const namaGuruDbRaw = guru.name || "";
+
+      // Normalisasi string (hapus karakter selain huruf/angka dan ubah ke lowercase)
       const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 
-      const guruClean = clean(guru.name);
-      const recordClean = clean(record.teacher_name || record.nama_guru || record.nama);
+      const cleanAbsen = clean(namaAbsenRaw);
+      const cleanGuru = clean(namaGuruDbRaw);
 
-      if (!guruClean || !recordClean) return false;
+      if (!cleanAbsen || !cleanGuru) return false;
 
-      // Pencocokan persis setelah di-clean (Misal: "adibfaridspd" === "adibfaridspd")
-      if (guruClean === recordClean) return true;
-
-      // 3. Pencocokan Nama Depan / Nama Panggilan (Mencegah masalah variasi gelar)
-      const guruFirstName = clean((guru.name || "").split(' ')[0]);
-      const recordFirstName = clean((record.teacher_name || record.nama_guru || record.nama || "").split(' ')[0]);
-
-      if (guruFirstName.length >= 3 && guruFirstName === recordFirstName) {
-        return true;
-      }
-
-      return false;
+      return cleanAbsen === cleanGuru;
     }
 
     function renderLaporan() {
@@ -1018,7 +1011,7 @@
         } else {
           let no = 1;
           dataFiltered.forEach(a => {
-            const namaGuru = a.teacher_name || a.nama_guru || a.nama || "Tanpa Nama";
+            const namaGuru = a.user_name || a.teacher_name || a.nama_guru || a.nama || "Tanpa Nama";
             const jamMasuk = a.check_in_time || a.jam_masuk || "-";
             const jamPulang = a.check_out_time || a.jam_pulang || "-";
 
@@ -1059,7 +1052,6 @@
             return isMatchBulan && isGuruAbsenMatch(a, g);
           });
 
-          // Mengambil tanggal unik agar absen berkali-kali di hari yang sama tetap dihitung 1 hari
           const tanggalUnik = new Set(absensiGuru.map(a => a.date));
           const totalHadir = tanggalUnik.size;
           const targetHariKerja = 20; 
@@ -1105,7 +1097,7 @@
         } else {
           let no = 1;
           dataFiltered.sort((a,b) => (a.date < b.date) ? 1 : -1).forEach(a => {
-            const namaGuru = a.teacher_name || a.nama_guru || a.nama || (selectedGuruObj ? selectedGuruObj.name : "Tanpa Nama");
+            const namaGuru = a.user_name || a.teacher_name || a.nama_guru || a.nama || (selectedGuruObj ? selectedGuruObj.name : "Tanpa Nama");
             const jamMasuk = a.check_in_time || a.jam_masuk || "-";
             const jamPulang = a.check_out_time || a.jam_pulang || "-";
 
