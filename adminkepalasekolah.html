@@ -959,27 +959,36 @@
       renderLaporan();
     }
 
-    // FUNGSI UTAMA PENCOCOKAN DATA GURU & ABSENSI
+    // LOGIKA PENCOCOKAN CERDAS & FLEKSIBEL (TOLERAN TERHADAP TANDA BACA/GELAR/ID)
     function isGuruAbsenMatch(record, guru) {
       if (!record || !guru) return false;
 
-      // 1. Cek berdasarkan ID Guru
+      // 1. Cek ID Guru (Jika tersimpan di Firestore)
       if ((record.teacher_id && record.teacher_id === guru.id) || 
           (record.guru_id && record.guru_id === guru.id)) {
         return true;
       }
 
-      // 2. Cek Pencocokan Nama Presisi
-      const namaGuruDb = (guru.name || "").toLowerCase().trim();
-      const namaAbsen = (record.teacher_name || record.nama_guru || record.nama || "").toLowerCase().trim();
+      // 2. Normalisasi Teks (Hapus spasi, koma, titik, huruf besar/kecil)
+      const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 
-      if (!namaGuruDb || !namaAbsen) return false;
+      const guruClean = clean(guru.name);
+      const recordClean = clean(record.teacher_name || record.nama_guru || record.nama);
 
-      // Pencocokan persis atau bersih dari karakter khusus
-      const cleanGuruDb = namaGuruDb.replace(/[^a-z0-9]/g, "");
-      const cleanAbsen = namaAbsen.replace(/[^a-z0-9]/g, "");
+      if (!guruClean || !recordClean) return false;
 
-      return cleanGuruDb === cleanAbsen || namaGuruDb === namaAbsen;
+      // Pencocokan persis setelah di-clean (Misal: "adibfaridspd" === "adibfaridspd")
+      if (guruClean === recordClean) return true;
+
+      // 3. Pencocokan Nama Depan / Nama Panggilan (Mencegah masalah variasi gelar)
+      const guruFirstName = clean((guru.name || "").split(' ')[0]);
+      const recordFirstName = clean((record.teacher_name || record.nama_guru || record.nama || "").split(' ')[0]);
+
+      if (guruFirstName.length >= 3 && guruFirstName === recordFirstName) {
+        return true;
+      }
+
+      return false;
     }
 
     function renderLaporan() {
@@ -1050,7 +1059,7 @@
             return isMatchBulan && isGuruAbsenMatch(a, g);
           });
 
-          // Unikkan berdasarkan tanggal
+          // Mengambil tanggal unik agar absen berkali-kali di hari yang sama tetap dihitung 1 hari
           const tanggalUnik = new Set(absensiGuru.map(a => a.date));
           const totalHadir = tanggalUnik.size;
           const targetHariKerja = 20; 
@@ -1087,7 +1096,7 @@
         `;
 
         const dataFiltered = dataAbsensiSemua.filter(a => {
-          if (!selectedGuruId) return true; // Jika dipilh "-- Semua Guru --"
+          if (!selectedGuruId) return true;
           return isGuruAbsenMatch(a, selectedGuruObj);
         });
 
