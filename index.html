@@ -271,18 +271,18 @@
     }
 
     // ----------------------------------------------------
-    // 7. PROSES SIMPAN ABSENSI KE FIREBASE
+    // 7. PROSES & VALIDASI ABSENSI HARIAN KE FIREBASE
     // ----------------------------------------------------
-    function prosesAbsensi(qrContent) {
+    async function prosesAbsensi(qrContent) {
       const guruSelect = document.getElementById("select-guru");
       const guruId = guruSelect.value;
       const guruNama = guruSelect.options[guruSelect.selectedIndex].text;
       
       const now = new Date();
-      const tglStr = now.toISOString().split('T')[0];
+      const tglStr = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
       const jamStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-      // Cek atau Ikat Device ID
+      // Validasi Device ID Terikat
       const guruObj = dataGuruSemua.find(g => g.id === guruId);
       if (guruObj && guruObj.device_id && guruObj.device_id !== deviceUUID) {
         showAlert("Gagal Absen: Akun Anda sudah terikat di HP lain! Hubungi Admin/Kepala Sekolah untuk reset HP.", "error");
@@ -291,28 +291,68 @@
 
       // Jika belum terikat HP, ikat Device ID ini ke guru
       if (guruObj && !guruObj.device_id) {
-        db.collection("teachers").doc(guruId).update({ device_id: deviceUUID });
+        await db.collection("teachers").doc(guruId).update({ device_id: deviceUUID });
       }
 
-      const payload = {
-        teacher_id: guruId,
-        teacher_name: guruNama,
-        device_id: deviceUUID,
-        qr_code: qrContent,
-        latitude: userLat,
-        longitude: userLng,
-        date: tglStr,
-        check_in_time: jamStr,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      };
+      try {
+        // Cek apakah guru sudah melakukan absensi pada tanggal hari ini
+        const attendanceRef = db.collection("attendances");
+        const querySnapshot = await attendanceRef
+          .where("date", "==", tglStr)
+          .where("teacher_id", "==", guruId)
+          .get();
 
-      db.collection("attendances").add(payload)
-        .then(() => {
-          showAlert(`Berhasil! Presensi atas nama ${guruNama} tercatat pukul ${jamStr} WIB ✅`, "success");
-        })
-        .catch((error) => {
-          showAlert("Gagal menyimpan ke database: " + error.message, "error");
-        });
+        if (querySnapshot.empty) {
+          // =====================================================
+          // KONDISI 1: Belum ada absen hari ini -> CATAT MASUK
+          // =====================================================
+          const payloadMasuk = {
+            teacher_id: guruId,
+            teacher_name: guruNama,
+            user_name: guruNama, // Sesuai struktur data dashboard admin
+            device_id: deviceUUID,
+            qr_code: qrContent,
+            latitude: userLat,
+            longitude: userLng,
+            date: tglStr,
+            check_in_time: jamStr,
+            check_out_time: "-",
+            status: "Hadir",
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          await attendanceRef.add(payloadMasuk);
+          showAlert(`Berhasil! Absensi MASUK atas nama ${guruNama} tercatat pukul ${jamStr} WIB ✅`, "success");
+
+        } else {
+          // Ambil dokumen absensi yang sudah ada di hari ini
+          const docSnap = querySnapshot.docs[0];
+          const docId = docSnap.id;
+          const dataAbsen = docSnap.data();
+
+          if (!dataAbsen.check_out_time || dataAbsen.check_out_time === "-") {
+            // =====================================================
+            // KONDISI 2: Sudah absen masuk, belum pulang -> CATAT PULANG
+            // =====================================================
+            await attendanceRef.doc(docId).update({
+              check_out_time: jamStr,
+              check_out_latitude: userLat,
+              check_out_longitude: userLng,
+              updated_at: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            showAlert(`Berhasil! Absensi PULANG atas nama ${guruNama} tercatat pukul ${jamStr} WIB. Hati-hati di jalan! 👋`, "success");
+
+          } else {
+            // =====================================================
+            // KONDISI 3: Sudah lengkap (Masuk & Pulang) -> TOLAK
+            // =====================================================
+            showAlert(`⚠️ Mohon Maaf, ${guruNama}, Anda sudah menyelesaikan Absensi Masuk dan Pulang untuk hari ini.`, "error");
+          }
+        }
+
+      } catch (error) {
+        showAlert("Gagal memproses absensi: " + error.message, "error");
+      }
     }
 
     function showAlert(msg, type) {
